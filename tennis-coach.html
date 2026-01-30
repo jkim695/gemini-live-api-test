@@ -1,0 +1,1127 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Tennis Coach</title>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/pose@0.5.1675469404/pose.js" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils@0.3.1675466862/camera_utils.js" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils@0.3.1675466124/drawing_utils.js" crossorigin="anonymous"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #0f1419 0%, #1a2634 100%);
+            min-height: 100vh;
+            color: #fff;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        header {
+            text-align: center;
+            margin-bottom: 20px;
+        }
+
+        h1 {
+            font-size: 2.2rem;
+            margin-bottom: 8px;
+            background: linear-gradient(90deg, #00d4aa, #00b894);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .subtitle {
+            color: #8892b0;
+            font-size: 1rem;
+        }
+
+        .main-layout {
+            display: grid;
+            grid-template-columns: 2fr 1fr;
+            gap: 20px;
+        }
+
+        @media (max-width: 1000px) {
+            .main-layout {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .video-section {
+            background: rgba(255, 255, 255, 0.03);
+            border-radius: 12px;
+            padding: 15px;
+            position: relative;
+        }
+
+        .video-container {
+            position: relative;
+            border-radius: 8px;
+            overflow: hidden;
+            background: #000;
+        }
+
+        #webcam, #poseCanvas {
+            width: 100%;
+            display: block;
+            border-radius: 8px;
+        }
+
+        #poseCanvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+        }
+
+        .video-overlay {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+
+        .status-badge {
+            padding: 6px 12px;
+            border-radius: 20px;
+            font-size: 0.75rem;
+            font-weight: 500;
+        }
+
+        .status-badge.connected { background: rgba(46, 213, 115, 0.2); color: #2ed573; }
+        .status-badge.disconnected { background: rgba(255, 71, 87, 0.2); color: #ff4757; }
+        .status-badge.connecting { background: rgba(255, 193, 7, 0.2); color: #ffc107; }
+        .status-badge.swing { background: rgba(0, 212, 170, 0.3); color: #00d4aa; }
+
+        .swing-indicator {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-size: 0.85rem;
+            font-weight: 600;
+            background: rgba(0, 212, 170, 0.2);
+            color: #00d4aa;
+            display: none;
+        }
+
+        .swing-indicator.active {
+            display: block;
+            animation: pulse 0.5s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; transform: scale(1); }
+            50% { opacity: 0.7; transform: scale(1.05); }
+        }
+
+        .controls {
+            display: flex;
+            gap: 10px;
+            margin-top: 15px;
+        }
+
+        button {
+            flex: 1;
+            padding: 12px 20px;
+            border: none;
+            border-radius: 8px;
+            font-size: 0.95rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        button:disabled { opacity: 0.5; cursor: not-allowed; }
+
+        .btn-primary {
+            background: linear-gradient(90deg, #00d4aa, #00b894);
+            color: #0f1419;
+        }
+
+        .btn-primary:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 15px rgba(0, 212, 170, 0.4);
+        }
+
+        .btn-danger {
+            background: rgba(255, 71, 87, 0.2);
+            color: #ff4757;
+        }
+
+        .sidebar {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+
+        .panel {
+            background: rgba(255, 255, 255, 0.03);
+            border-radius: 12px;
+            padding: 15px;
+        }
+
+        .panel-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 12px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .panel-header h3 {
+            font-size: 0.95rem;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .panel-header .icon {
+            font-size: 1.1rem;
+        }
+
+        .hype-feed {
+            max-height: 200px;
+            overflow-y: auto;
+        }
+
+        .hype-message {
+            padding: 10px 12px;
+            background: rgba(0, 212, 170, 0.1);
+            border-left: 3px solid #00d4aa;
+            border-radius: 0 8px 8px 0;
+            margin-bottom: 8px;
+            font-size: 0.9rem;
+            animation: slideIn 0.3s ease;
+        }
+
+        @keyframes slideIn {
+            from { opacity: 0; transform: translateX(-10px); }
+            to { opacity: 1; transform: translateX(0); }
+        }
+
+        .coach-feed {
+            max-height: 300px;
+            overflow-y: auto;
+        }
+
+        .coach-analysis {
+            padding: 12px;
+            background: rgba(99, 102, 241, 0.1);
+            border-left: 3px solid #6366f1;
+            border-radius: 0 8px 8px 0;
+            margin-bottom: 10px;
+        }
+
+        .coach-analysis .timestamp {
+            font-size: 0.7rem;
+            color: #8892b0;
+            margin-bottom: 6px;
+        }
+
+        .coach-analysis .content {
+            font-size: 0.85rem;
+            line-height: 1.5;
+        }
+
+        .coach-analysis.loading {
+            opacity: 0.6;
+        }
+
+        .coach-analysis.loading .content::after {
+            content: '...';
+            animation: dots 1s infinite;
+        }
+
+        @keyframes dots {
+            0%, 20% { content: '.'; }
+            40% { content: '..'; }
+            60%, 100% { content: '...'; }
+        }
+
+        .metrics-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 10px;
+        }
+
+        .metric-card {
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 8px;
+            padding: 12px;
+            text-align: center;
+        }
+
+        .metric-value {
+            font-size: 1.4rem;
+            font-weight: 600;
+            color: #00d4aa;
+        }
+
+        .metric-label {
+            font-size: 0.7rem;
+            color: #8892b0;
+            margin-top: 4px;
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 20px;
+            color: #8892b0;
+            font-size: 0.85rem;
+        }
+
+        #lowResCanvas {
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>AI Tennis Coach</h1>
+            <p class="subtitle">Real-time hype + Deep swing analysis powered by Gemini</p>
+        </header>
+
+        <div class="main-layout">
+            <div class="video-section">
+                <div class="video-container">
+                    <video id="webcam" autoplay playsinline muted></video>
+                    <canvas id="poseCanvas"></canvas>
+                    <div class="video-overlay">
+                        <span id="connectionStatus" class="status-badge disconnected">Disconnected</span>
+                        <span id="poseStatus" class="status-badge disconnected">Pose: Off</span>
+                    </div>
+                    <div id="swingIndicator" class="swing-indicator">SWING DETECTED</div>
+                </div>
+                <canvas id="lowResCanvas"></canvas>
+                <div class="controls">
+                    <button id="startBtn" class="btn-primary" onclick="startSession()">Start Coaching</button>
+                    <button id="stopBtn" class="btn-danger" onclick="stopSession()" disabled>Stop</button>
+                </div>
+            </div>
+
+            <div class="sidebar">
+                <!-- Real-time Metrics -->
+                <div class="panel">
+                    <div class="panel-header">
+                        <h3><span class="icon">📊</span> Live Metrics</h3>
+                    </div>
+                    <div class="metrics-grid">
+                        <div class="metric-card">
+                            <div id="swingCount" class="metric-value">0</div>
+                            <div class="metric-label">Swings Detected</div>
+                        </div>
+                        <div class="metric-card">
+                            <div id="shoulderRotation" class="metric-value">--°</div>
+                            <div class="metric-label">Shoulder Rotation</div>
+                        </div>
+                        <div class="metric-card">
+                            <div id="racketSpeed" class="metric-value">-- mph</div>
+                            <div class="metric-label">Est. Racket Speed</div>
+                        </div>
+                        <div class="metric-card">
+                            <div id="contactHeight" class="metric-value">--</div>
+                            <div class="metric-label">Contact Height</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Hype Man Feed -->
+                <div class="panel">
+                    <div class="panel-header">
+                        <h3><span class="icon">🎯</span> Hype Man</h3>
+                        <span class="status-badge connected" id="hypeStatus" style="display: none;">Live</span>
+                    </div>
+                    <div id="hypeFeed" class="hype-feed">
+                        <div class="empty-state">Start session for real-time encouragement</div>
+                    </div>
+                </div>
+
+                <!-- Deep Coach Feed -->
+                <div class="panel">
+                    <div class="panel-header">
+                        <h3><span class="icon">🧠</span> Deep Coach Analysis</h3>
+                    </div>
+                    <div id="coachFeed" class="coach-feed">
+                        <div class="empty-state">Swing analysis will appear here after each shot</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // ============================================
+        // CONFIGURATION
+        // ============================================
+        const CONFIG = {
+            GEMINI_API_KEY: 'AIzaSyCY_sVH48VfSZfyeFVBaXEbTXwNeCqByWU',
+            LIVE_API_URL: 'wss://generativelanguage.googleapis.com/ws/google.ai.generativelanguage.v1beta.GenerativeService.BidiGenerateContent',
+            // Using Gemini 3 Pro for deep analysis (requires thinking config)
+            GEMINI_REST_URL: 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-pro-preview-06-05:generateContent',
+            HYPE_MODEL: 'models/gemini-2.5-flash-native-audio-preview-12-2025',
+            COACH_MODEL: 'gemini-2.5-pro-preview-06-05',
+            LOW_RES_WIDTH: 320,
+            LOW_RES_HEIGHT: 240,
+            HIGH_RES_WIDTH: 1280,
+            HIGH_RES_HEIGHT: 720,
+            FRAME_INTERVAL_MS: 1000,
+            AUDIO_INPUT_RATE: 16000,
+            AUDIO_OUTPUT_RATE: 24000,
+            SWING_BUFFER_SECONDS: 4
+        };
+
+        // ============================================
+        // SYSTEM INSTRUCTIONS
+        // ============================================
+        const HYPE_MAN_INSTRUCTION = `You are an energetic tennis supporter watching a live match. Your ONLY job is to:
+1. Identify when a shot or movement happens
+2. Offer SHORT, IMMEDIATE encouragement (max 5 words)
+
+Examples of good responses:
+- "Nice pace!"
+- "Keep moving!"
+- "Great hustle!"
+- "Good preparation!"
+- "Stay low!"
+- "Nice follow through!"
+
+RULES:
+- Do NOT critique form or technique
+- Do NOT give coaching advice
+- Do NOT describe what you see in detail
+- Do NOT hallucinate mechanics you can't see
+- ONLY encourage, never criticize
+- Keep responses under 5 words
+- Respond ONLY when you see action/movement`;
+
+        const DEEP_COACH_INSTRUCTION = `You are an expert tennis biomechanics coach analyzing a swing. You have been provided:
+1. A video clip of the swing
+2. Skeletal telemetry data with frame-by-frame joint positions
+
+ANALYSIS PROTOCOL:
+1. The telemetry data is GROUND TRUTH - if video is blurry, trust the data
+2. Look for kinetic chain breakdowns:
+   - Arming the ball (elbow leading instead of hip rotation)
+   - Late contact point (ball behind optimal strike zone)
+   - Insufficient knee bend (power loss from legs)
+   - Poor shoulder rotation (less than 45° unit turn)
+   - Wrist lag issues (early or late release)
+
+3. Examine the computed metrics:
+   - Peak racket head speed
+   - Shoulder rotation angle
+   - Contact point height relative to hips
+
+OUTPUT FORMAT:
+Provide exactly ONE specific, actionable correction. Be concise but technical.
+
+Example: "Your shoulder rotation peaked at 38° - aim for 45°+ by initiating the unit turn earlier when you see the ball leave your opponent's racket."
+
+Do NOT:
+- Give generic advice
+- List multiple corrections
+- Praise without substance
+- Repeat the telemetry data back`;
+
+        // ============================================
+        // STATE MANAGEMENT
+        // ============================================
+        class DualStreamManager {
+            constructor() {
+                // Stream 1: Live API (Hype Man)
+                this.liveSocket = null;
+                this.isLiveConnected = false;
+                this.audioContext = null;
+                this.audioProcessor = null;
+
+                // Stream 2: High-res buffer for Coach
+                this.swingBuffer = [];
+                this.telemetryBuffer = [];
+                this.isRecordingSwing = false;
+                this.swingStartTime = null;
+
+                // Pose Detection
+                this.pose = null;
+                this.isPoseReady = false;
+                this.currentLandmarks = null;
+
+                // Swing State Machine
+                this.swingState = 'IDLE'; // IDLE -> UNIT_TURN -> FORWARD_SWING -> FOLLOW_THROUGH -> IDLE
+                this.swingCount = 0;
+
+                // Media
+                this.mediaStream = null;
+                this.frameInterval = null;
+
+                // Metrics
+                this.lastWristPositions = [];
+                this.peakRacketSpeed = 0;
+                this.shoulderRotation = 0;
+                this.contactHeight = 0;
+
+                // Rate limiting
+                this.lastAnalysisTime = 0;
+            }
+
+            // ----------------------------------------
+            // INITIALIZATION
+            // ----------------------------------------
+            async initialize() {
+                await this.initializeMedia();
+                await this.initializePose();
+                await this.initializeLiveAPI();
+            }
+
+            async initializeMedia() {
+                this.mediaStream = await navigator.mediaDevices.getUserMedia({
+                    video: {
+                        width: { ideal: CONFIG.HIGH_RES_WIDTH },
+                        height: { ideal: CONFIG.HIGH_RES_HEIGHT },
+                        frameRate: { ideal: 30 }
+                    },
+                    audio: {
+                        sampleRate: CONFIG.AUDIO_INPUT_RATE,
+                        channelCount: 1,
+                        echoCancellation: true,
+                        noiseSuppression: true
+                    }
+                });
+
+                const webcam = document.getElementById('webcam');
+                webcam.srcObject = this.mediaStream;
+                await webcam.play();
+
+                // Setup canvases
+                const poseCanvas = document.getElementById('poseCanvas');
+                const lowResCanvas = document.getElementById('lowResCanvas');
+
+                poseCanvas.width = webcam.videoWidth;
+                poseCanvas.height = webcam.videoHeight;
+                lowResCanvas.width = CONFIG.LOW_RES_WIDTH;
+                lowResCanvas.height = CONFIG.LOW_RES_HEIGHT;
+
+                // Initialize audio context
+                this.audioContext = new (window.AudioContext || window.webkitAudioContext)({
+                    sampleRate: CONFIG.AUDIO_INPUT_RATE
+                });
+            }
+
+            async initializePose() {
+                this.pose = new Pose({
+                    locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/pose@0.5.1675469404/${file}`
+                });
+
+                this.pose.setOptions({
+                    modelComplexity: 1,
+                    smoothLandmarks: true,
+                    enableSegmentation: false,
+                    minDetectionConfidence: 0.5,
+                    minTrackingConfidence: 0.5
+                });
+
+                this.pose.onResults((results) => this.onPoseResults(results));
+
+                // Wait for pose to be ready
+                await this.pose.initialize();
+                this.isPoseReady = true;
+                document.getElementById('poseStatus').textContent = 'Pose: Ready';
+                document.getElementById('poseStatus').className = 'status-badge connected';
+            }
+
+            async initializeLiveAPI() {
+                updateConnectionStatus('connecting');
+                addHypeMessage('Connecting to Hype Man...');
+
+                const wsUrl = `${CONFIG.LIVE_API_URL}?key=${CONFIG.GEMINI_API_KEY}`;
+                this.liveSocket = new WebSocket(wsUrl);
+
+                this.liveSocket.onopen = () => {
+                    console.log('Live API connected');
+                    this.sendLiveSetup();
+                };
+
+                this.liveSocket.onmessage = async (event) => {
+                    let data = event.data;
+                    if (data instanceof Blob) {
+                        data = await data.text();
+                    }
+                    this.handleLiveMessage(data);
+                };
+
+                this.liveSocket.onerror = (error) => {
+                    console.error('Live API error:', error);
+                    updateConnectionStatus('disconnected');
+                };
+
+                this.liveSocket.onclose = (event) => {
+                    console.log('Live API closed:', event.code, event.reason);
+                    this.isLiveConnected = false;
+                    updateConnectionStatus('disconnected');
+                };
+            }
+
+            sendLiveSetup() {
+                const setup = {
+                    setup: {
+                        model: CONFIG.HYPE_MODEL,
+                        generation_config: {
+                            response_modalities: ['AUDIO']
+                        },
+                        system_instruction: {
+                            parts: [{ text: HYPE_MAN_INSTRUCTION }]
+                        }
+                    }
+                };
+                this.liveSocket.send(JSON.stringify(setup));
+            }
+
+            handleLiveMessage(data) {
+                try {
+                    const message = JSON.parse(data);
+                    console.log('Live message:', message);
+
+                    if (message.setupComplete) {
+                        this.isLiveConnected = true;
+                        updateConnectionStatus('connected');
+                        document.getElementById('hypeStatus').style.display = 'inline-block';
+                        addHypeMessage('Hype Man ready! Let\'s go!');
+                        this.startStreaming();
+                    }
+
+                    if (message.serverContent) {
+                        const parts = message.serverContent.modelTurn?.parts || [];
+                        for (const part of parts) {
+                            if (part.text) {
+                                addHypeMessage(part.text);
+                            }
+                            if (part.inlineData?.mimeType?.startsWith('audio/')) {
+                                this.playAudio(part.inlineData.data);
+                            }
+                        }
+                    }
+                } catch (error) {
+                    console.error('Failed to parse live message:', error);
+                }
+            }
+
+            // ----------------------------------------
+            // STREAMING LOOP
+            // ----------------------------------------
+            startStreaming() {
+                // Start audio capture
+                this.startAudioCapture();
+
+                // Start frame processing loop
+                this.frameInterval = setInterval(() => {
+                    this.processFrame();
+                }, 33); // ~30fps for pose detection
+
+                // Send low-res frames to Live API at 1fps
+                setInterval(() => {
+                    this.sendLowResFrame();
+                }, CONFIG.FRAME_INTERVAL_MS);
+            }
+
+            startAudioCapture() {
+                const source = this.audioContext.createMediaStreamSource(this.mediaStream);
+                const processor = this.audioContext.createScriptProcessor(4096, 1, 1);
+
+                processor.onaudioprocess = (e) => {
+                    if (!this.isLiveConnected || !this.liveSocket) return;
+
+                    const inputData = e.inputBuffer.getChannelData(0);
+                    const pcmData = new Int16Array(inputData.length);
+
+                    for (let i = 0; i < inputData.length; i++) {
+                        const s = Math.max(-1, Math.min(1, inputData[i]));
+                        pcmData[i] = s < 0 ? s * 0x8000 : s * 0x7FFF;
+                    }
+
+                    const uint8Array = new Uint8Array(pcmData.buffer);
+                    let binary = '';
+                    for (let i = 0; i < uint8Array.length; i++) {
+                        binary += String.fromCharCode(uint8Array[i]);
+                    }
+
+                    const message = {
+                        realtimeInput: {
+                            mediaChunks: [{
+                                mimeType: 'audio/pcm;rate=16000',
+                                data: btoa(binary)
+                            }]
+                        }
+                    };
+                    this.liveSocket.send(JSON.stringify(message));
+                };
+
+                source.connect(processor);
+                processor.connect(this.audioContext.destination);
+                this.audioProcessor = processor;
+            }
+
+            async processFrame() {
+                if (!this.isPoseReady) return;
+
+                const webcam = document.getElementById('webcam');
+                await this.pose.send({ image: webcam });
+            }
+
+            sendLowResFrame() {
+                if (!this.isLiveConnected || !this.liveSocket) return;
+
+                const webcam = document.getElementById('webcam');
+                const lowResCanvas = document.getElementById('lowResCanvas');
+                const ctx = lowResCanvas.getContext('2d');
+
+                ctx.drawImage(webcam, 0, 0, CONFIG.LOW_RES_WIDTH, CONFIG.LOW_RES_HEIGHT);
+                const dataUrl = lowResCanvas.toDataURL('image/jpeg', 0.6);
+                const base64 = dataUrl.split(',')[1];
+
+                const message = {
+                    realtimeInput: {
+                        mediaChunks: [{
+                            mimeType: 'image/jpeg',
+                            data: base64
+                        }]
+                    }
+                };
+                this.liveSocket.send(JSON.stringify(message));
+            }
+
+            // ----------------------------------------
+            // POSE PROCESSING & SWING DETECTION
+            // ----------------------------------------
+            onPoseResults(results) {
+                this.drawPose(results);
+
+                if (!results.poseLandmarks) return;
+
+                this.currentLandmarks = results.poseLandmarks;
+                this.updateSwingStateMachine(results.poseLandmarks);
+                this.computeMetrics(results.poseLandmarks);
+
+                // Buffer for swing recording
+                if (this.isRecordingSwing) {
+                    this.bufferTelemetry(results.poseLandmarks);
+                }
+            }
+
+            drawPose(results) {
+                const canvas = document.getElementById('poseCanvas');
+                const ctx = canvas.getContext('2d');
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+                if (results.poseLandmarks) {
+                    drawConnectors(ctx, results.poseLandmarks, POSE_CONNECTIONS, {
+                        color: '#00d4aa',
+                        lineWidth: 2
+                    });
+                    drawLandmarks(ctx, results.poseLandmarks, {
+                        color: '#00b894',
+                        lineWidth: 1,
+                        radius: 3
+                    });
+                }
+            }
+
+            updateSwingStateMachine(landmarks) {
+                // Key landmarks for tennis swing detection
+                const rightWrist = landmarks[16];
+                const rightElbow = landmarks[14];
+                const rightShoulder = landmarks[12];
+                const leftShoulder = landmarks[11];
+                const rightHip = landmarks[24];
+                const leftHip = landmarks[23];
+
+                // Calculate shoulder line angle (for unit turn detection)
+                const shoulderAngle = Math.atan2(
+                    rightShoulder.y - leftShoulder.y,
+                    rightShoulder.x - leftShoulder.x
+                ) * (180 / Math.PI);
+
+                // Calculate wrist velocity
+                this.lastWristPositions.push({ x: rightWrist.x, y: rightWrist.y, t: Date.now() });
+                if (this.lastWristPositions.length > 10) {
+                    this.lastWristPositions.shift();
+                }
+
+                const wristVelocity = this.calculateWristVelocity();
+
+                // State machine transitions
+                switch (this.swingState) {
+                    case 'IDLE':
+                        // Detect unit turn: shoulder rotation > 30°
+                        if (Math.abs(shoulderAngle) > 30 && rightWrist.x > rightShoulder.x) {
+                            this.swingState = 'UNIT_TURN';
+                            this.startSwingRecording();
+                        }
+                        break;
+
+                    case 'UNIT_TURN':
+                        // Detect forward swing: wrist moving forward rapidly
+                        if (wristVelocity > 0.02 && rightWrist.x < rightShoulder.x) {
+                            this.swingState = 'FORWARD_SWING';
+                        }
+                        break;
+
+                    case 'FORWARD_SWING':
+                        // Detect follow-through: wrist crosses body center
+                        const bodyCenter = (leftShoulder.x + rightShoulder.x) / 2;
+                        if (rightWrist.x < bodyCenter - 0.1) {
+                            this.swingState = 'FOLLOW_THROUGH';
+                            this.peakRacketSpeed = wristVelocity * 100; // Rough estimate
+                        }
+                        break;
+
+                    case 'FOLLOW_THROUGH':
+                        // Complete swing detection
+                        if (wristVelocity < 0.01) {
+                            this.completeSwing();
+                            this.swingState = 'IDLE';
+                        }
+                        break;
+                }
+
+                // Update UI
+                document.getElementById('swingIndicator').className =
+                    'swing-indicator' + (this.swingState !== 'IDLE' ? ' active' : '');
+            }
+
+            calculateWristVelocity() {
+                if (this.lastWristPositions.length < 2) return 0;
+
+                const recent = this.lastWristPositions.slice(-2);
+                const dx = recent[1].x - recent[0].x;
+                const dy = recent[1].y - recent[0].y;
+                const dt = (recent[1].t - recent[0].t) / 1000;
+
+                return Math.sqrt(dx * dx + dy * dy) / dt;
+            }
+
+            computeMetrics(landmarks) {
+                // Shoulder rotation
+                const rightShoulder = landmarks[12];
+                const leftShoulder = landmarks[11];
+                this.shoulderRotation = Math.abs(Math.atan2(
+                    rightShoulder.y - leftShoulder.y,
+                    rightShoulder.x - leftShoulder.x
+                ) * (180 / Math.PI));
+
+                // Contact height relative to hips
+                const rightWrist = landmarks[16];
+                const rightHip = landmarks[24];
+                const heightDiff = (rightHip.y - rightWrist.y) * 100;
+                this.contactHeight = heightDiff > 0 ? 'Above' : 'Below';
+
+                // Update UI
+                document.getElementById('shoulderRotation').textContent =
+                    this.shoulderRotation.toFixed(0) + '°';
+                document.getElementById('contactHeight').textContent = this.contactHeight;
+
+                if (this.peakRacketSpeed > 0) {
+                    document.getElementById('racketSpeed').textContent =
+                        this.peakRacketSpeed.toFixed(0) + ' mph';
+                }
+            }
+
+            // ----------------------------------------
+            // SWING RECORDING & ANALYSIS
+            // ----------------------------------------
+            startSwingRecording() {
+                this.isRecordingSwing = true;
+                this.swingStartTime = Date.now();
+                this.swingBuffer = [];
+                this.telemetryBuffer = [];
+                console.log('Started swing recording');
+            }
+
+            bufferTelemetry(landmarks) {
+                const frame = {
+                    timestamp: Date.now() - this.swingStartTime,
+                    joints: {
+                        right_wrist: this.extractJoint(landmarks[16]),
+                        right_elbow: this.extractJoint(landmarks[14]),
+                        right_shoulder: this.extractJoint(landmarks[12]),
+                        left_shoulder: this.extractJoint(landmarks[11]),
+                        right_hip: this.extractJoint(landmarks[24]),
+                        left_hip: this.extractJoint(landmarks[23]),
+                        right_knee: this.extractJoint(landmarks[26]),
+                        left_knee: this.extractJoint(landmarks[25])
+                    }
+                };
+                this.telemetryBuffer.push(frame);
+
+                // Also capture high-res frame
+                const webcam = document.getElementById('webcam');
+                const canvas = document.createElement('canvas');
+                canvas.width = webcam.videoWidth;
+                canvas.height = webcam.videoHeight;
+                canvas.getContext('2d').drawImage(webcam, 0, 0);
+                this.swingBuffer.push(canvas.toDataURL('image/jpeg', 0.9));
+            }
+
+            extractJoint(landmark) {
+                return {
+                    x: landmark.x,
+                    y: landmark.y,
+                    z: landmark.z || 0,
+                    visibility: landmark.visibility || 1
+                };
+            }
+
+            async completeSwing() {
+                this.isRecordingSwing = false;
+                this.swingCount++;
+                document.getElementById('swingCount').textContent = this.swingCount;
+
+                console.log(`Swing ${this.swingCount} completed. Frames: ${this.swingBuffer.length}`);
+
+                // Send to Deep Coach for analysis (with rate limiting)
+                await this.analyzeSwing();
+            }
+
+            async analyzeSwing() {
+                if (this.swingBuffer.length === 0) return;
+
+                // Rate limiting: only allow 1 analysis per 10 seconds
+                const now = Date.now();
+                if (this.lastAnalysisTime && (now - this.lastAnalysisTime) < 10000) {
+                    console.log('Rate limited - skipping analysis');
+                    addCoachAnalysis('Swing recorded. Waiting for rate limit cooldown...', false, now);
+                    return;
+                }
+                this.lastAnalysisTime = now;
+
+                // Add loading state
+                const analysisId = Date.now();
+                addCoachAnalysis('Analyzing swing...', true, analysisId);
+
+                try {
+                    // Prepare telemetry summary
+                    const telemetrySummary = {
+                        frame_count: this.telemetryBuffer.length,
+                        duration_ms: this.telemetryBuffer.length > 0 ?
+                            this.telemetryBuffer[this.telemetryBuffer.length - 1].timestamp : 0,
+                        peak_racket_speed_estimate: this.peakRacketSpeed.toFixed(1) + ' mph',
+                        max_shoulder_rotation: this.shoulderRotation.toFixed(1) + '°',
+                        contact_height: this.contactHeight,
+                        key_frames: this.telemetryBuffer.filter((_, i) =>
+                            i % Math.ceil(this.telemetryBuffer.length / 5) === 0
+                        )
+                    };
+
+                    // Select key frames for analysis (start, mid, contact, follow-through)
+                    const keyFrameIndices = [
+                        0,
+                        Math.floor(this.swingBuffer.length * 0.3),
+                        Math.floor(this.swingBuffer.length * 0.6),
+                        this.swingBuffer.length - 1
+                    ];
+
+                    const keyFrames = keyFrameIndices.map(i => ({
+                        inlineData: {
+                            mimeType: 'image/jpeg',
+                            data: this.swingBuffer[Math.min(i, this.swingBuffer.length - 1)].split(',')[1]
+                        }
+                    }));
+
+                    console.log('Sending to Gemini:', keyFrames.length, 'frames');
+
+                    // Call Gemini 2.5 Pro for deep analysis
+                    const response = await fetch(`${CONFIG.GEMINI_REST_URL}?key=${CONFIG.GEMINI_API_KEY}`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            contents: [{
+                                parts: [
+                                    { text: DEEP_COACH_INSTRUCTION },
+                                    { text: `\n\nTELEMETRY DATA:\n${JSON.stringify(telemetrySummary, null, 2)}\n\nAnalyze the following swing frames:` },
+                                    ...keyFrames
+                                ]
+                            }],
+                            generationConfig: {
+                                temperature: 0.3,
+                                maxOutputTokens: 1024
+                            }
+                        })
+                    });
+
+                    const result = await response.json();
+                    console.log('Gemini response:', JSON.stringify(result, null, 2));
+
+                    // Check for API errors
+                    if (result.error) {
+                        throw new Error(result.error.message || JSON.stringify(result.error));
+                    }
+
+                    const analysisText = result.candidates?.[0]?.content?.parts?.[0]?.text
+                        || 'No analysis returned. Check console for details.';
+
+                    updateCoachAnalysis(analysisId, analysisText);
+
+                } catch (error) {
+                    console.error('Coach analysis failed:', error);
+                    updateCoachAnalysis(analysisId, 'Analysis failed: ' + error.message);
+                }
+            }
+
+            // ----------------------------------------
+            // AUDIO PLAYBACK
+            // ----------------------------------------
+            playAudio(base64Data) {
+                try {
+                    const binaryString = atob(base64Data);
+                    const bytes = new Uint8Array(binaryString.length);
+                    for (let i = 0; i < binaryString.length; i++) {
+                        bytes[i] = binaryString.charCodeAt(i);
+                    }
+
+                    const samples = new Int16Array(bytes.buffer);
+                    const floatSamples = new Float32Array(samples.length);
+                    for (let i = 0; i < samples.length; i++) {
+                        floatSamples[i] = samples[i] / 32768.0;
+                    }
+
+                    const audioBuffer = this.audioContext.createBuffer(
+                        1, floatSamples.length, CONFIG.AUDIO_OUTPUT_RATE
+                    );
+                    audioBuffer.getChannelData(0).set(floatSamples);
+
+                    const source = this.audioContext.createBufferSource();
+                    source.buffer = audioBuffer;
+                    source.connect(this.audioContext.destination);
+                    source.start();
+                } catch (error) {
+                    console.error('Audio playback error:', error);
+                }
+            }
+
+            // ----------------------------------------
+            // CLEANUP
+            // ----------------------------------------
+            destroy() {
+                if (this.frameInterval) {
+                    clearInterval(this.frameInterval);
+                }
+
+                if (this.audioProcessor) {
+                    this.audioProcessor.disconnect();
+                }
+
+                if (this.liveSocket) {
+                    this.liveSocket.close();
+                }
+
+                if (this.mediaStream) {
+                    this.mediaStream.getTracks().forEach(track => track.stop());
+                }
+
+                if (this.audioContext) {
+                    this.audioContext.close();
+                }
+            }
+        }
+
+        // ============================================
+        // UI HELPERS
+        // ============================================
+        let manager = null;
+
+        function updateConnectionStatus(status) {
+            const el = document.getElementById('connectionStatus');
+            el.className = `status-badge ${status}`;
+            el.textContent = status.charAt(0).toUpperCase() + status.slice(1);
+        }
+
+        function addHypeMessage(text) {
+            const feed = document.getElementById('hypeFeed');
+            const emptyState = feed.querySelector('.empty-state');
+            if (emptyState) emptyState.remove();
+
+            const msg = document.createElement('div');
+            msg.className = 'hype-message';
+            msg.textContent = text;
+            feed.insertBefore(msg, feed.firstChild);
+
+            while (feed.children.length > 10) {
+                feed.removeChild(feed.lastChild);
+            }
+        }
+
+        function addCoachAnalysis(text, loading = false, id = null) {
+            const feed = document.getElementById('coachFeed');
+            const emptyState = feed.querySelector('.empty-state');
+            if (emptyState) emptyState.remove();
+
+            const analysis = document.createElement('div');
+            analysis.className = 'coach-analysis' + (loading ? ' loading' : '');
+            if (id) analysis.dataset.id = id;
+
+            analysis.innerHTML = `
+                <div class="timestamp">${new Date().toLocaleTimeString()}</div>
+                <div class="content">${text}</div>
+            `;
+            feed.insertBefore(analysis, feed.firstChild);
+
+            while (feed.children.length > 5) {
+                feed.removeChild(feed.lastChild);
+            }
+        }
+
+        function updateCoachAnalysis(id, text) {
+            const analysis = document.querySelector(`.coach-analysis[data-id="${id}"]`);
+            if (analysis) {
+                analysis.classList.remove('loading');
+                analysis.querySelector('.content').textContent = text;
+            }
+        }
+
+        async function startSession() {
+            document.getElementById('startBtn').disabled = true;
+            document.getElementById('stopBtn').disabled = false;
+
+            try {
+                manager = new DualStreamManager();
+                await manager.initialize();
+            } catch (error) {
+                console.error('Failed to start:', error);
+                alert('Failed to start: ' + error.message);
+                stopSession();
+            }
+        }
+
+        function stopSession() {
+            if (manager) {
+                manager.destroy();
+                manager = null;
+            }
+
+            document.getElementById('startBtn').disabled = false;
+            document.getElementById('stopBtn').disabled = true;
+            updateConnectionStatus('disconnected');
+            document.getElementById('hypeStatus').style.display = 'none';
+            document.getElementById('poseStatus').textContent = 'Pose: Off';
+            document.getElementById('poseStatus').className = 'status-badge disconnected';
+            document.getElementById('webcam').srcObject = null;
+        }
+
+        window.addEventListener('beforeunload', stopSession);
+    </script>
+</body>
+</html>

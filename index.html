@@ -1,0 +1,735 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gemini Object Identifier</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+            min-height: 100vh;
+            color: #fff;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+
+        h1 {
+            font-size: 2.5rem;
+            margin-bottom: 10px;
+            background: linear-gradient(90deg, #4facfe, #00f2fe);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .subtitle {
+            color: #8892b0;
+            font-size: 1.1rem;
+        }
+
+        .main-content {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+
+        @media (max-width: 900px) {
+            .main-content {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .video-section {
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 12px;
+            padding: 20px;
+            position: relative;
+        }
+
+        .video-container {
+            position: relative;
+            border-radius: 8px;
+            overflow: hidden;
+            background: #000;
+        }
+
+        #webcam {
+            width: 100%;
+            display: block;
+            border-radius: 8px;
+        }
+
+        .video-overlay {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            display: flex;
+            gap: 8px;
+        }
+
+        .status-badge {
+            padding: 6px 12px;
+            border-radius: 20px;
+            font-size: 0.8rem;
+            font-weight: 500;
+        }
+
+        .status-badge.connected {
+            background: rgba(46, 213, 115, 0.2);
+            color: #2ed573;
+        }
+
+        .status-badge.disconnected {
+            background: rgba(255, 71, 87, 0.2);
+            color: #ff4757;
+        }
+
+        .status-badge.connecting {
+            background: rgba(255, 193, 7, 0.2);
+            color: #ffc107;
+        }
+
+        .controls {
+            display: flex;
+            gap: 10px;
+            margin-top: 15px;
+        }
+
+        button {
+            flex: 1;
+            padding: 12px 24px;
+            border: none;
+            border-radius: 8px;
+            font-size: 1rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .btn-primary {
+            background: linear-gradient(90deg, #4facfe, #00f2fe);
+            color: #1a1a2e;
+        }
+
+        .btn-primary:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 15px rgba(79, 172, 254, 0.4);
+        }
+
+        .btn-secondary {
+            background: rgba(255, 255, 255, 0.1);
+            color: #fff;
+        }
+
+        .btn-secondary:hover:not(:disabled) {
+            background: rgba(255, 255, 255, 0.2);
+        }
+
+        .btn-danger {
+            background: rgba(255, 71, 87, 0.2);
+            color: #ff4757;
+        }
+
+        .btn-danger:hover:not(:disabled) {
+            background: rgba(255, 71, 87, 0.3);
+        }
+
+        .results-section {
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 12px;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .results-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+
+        .results-header h2 {
+            font-size: 1.2rem;
+        }
+
+        .clear-btn {
+            padding: 6px 12px;
+            font-size: 0.85rem;
+            background: transparent;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            color: #8892b0;
+        }
+
+        .clear-btn:hover {
+            border-color: rgba(255, 255, 255, 0.4);
+            color: #fff;
+        }
+
+        .results-container {
+            flex: 1;
+            min-height: 300px;
+            max-height: 500px;
+            overflow-y: auto;
+            background: rgba(0, 0, 0, 0.2);
+            border-radius: 8px;
+            padding: 15px;
+        }
+
+        .result-item {
+            padding: 15px;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 8px;
+            margin-bottom: 10px;
+            border-left: 3px solid #4facfe;
+        }
+
+        .result-item:last-child {
+            margin-bottom: 0;
+        }
+
+        .result-time {
+            font-size: 0.75rem;
+            color: #8892b0;
+            margin-bottom: 5px;
+        }
+
+        .result-text {
+            color: #e6e6e6;
+            line-height: 1.5;
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 40px 20px;
+            color: #8892b0;
+        }
+
+        .empty-state svg {
+            width: 48px;
+            height: 48px;
+            margin-bottom: 15px;
+            opacity: 0.5;
+        }
+
+        .instructions {
+            background: rgba(79, 172, 254, 0.1);
+            border: 1px solid rgba(79, 172, 254, 0.3);
+            border-radius: 8px;
+            padding: 15px;
+            margin-top: 20px;
+        }
+
+        .instructions h3 {
+            font-size: 1rem;
+            margin-bottom: 10px;
+            color: #4facfe;
+        }
+
+        .instructions ol {
+            padding-left: 20px;
+            color: #8892b0;
+            font-size: 0.9rem;
+        }
+
+        .instructions li {
+            margin-bottom: 5px;
+        }
+
+        #frameCanvas {
+            display: none;
+        }
+
+        .pulse {
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Gemini Object Identifier</h1>
+            <p class="subtitle">Show objects to your camera and ask Gemini about them using your voice</p>
+        </header>
+
+        <div class="main-content">
+            <div class="video-section">
+                <div class="video-container">
+                    <video id="webcam" autoplay playsinline muted></video>
+                    <div class="video-overlay">
+                        <span id="connectionStatus" class="status-badge disconnected">Disconnected</span>
+                        <span id="streamingStatus" class="status-badge disconnected" style="display: none;">Streaming</span>
+                    </div>
+                </div>
+                <canvas id="frameCanvas"></canvas>
+                <div class="controls">
+                    <button id="startBtn" class="btn-primary" onclick="startSession()">Start Identifying</button>
+                    <button id="stopBtn" class="btn-danger" onclick="stopSession()" disabled>Stop</button>
+                </div>
+            </div>
+
+            <div class="results-section">
+                <div class="results-header">
+                    <h2>Identified Objects</h2>
+                    <button class="clear-btn" onclick="clearResults()">Clear</button>
+                </div>
+                <div id="results" class="results-container">
+                    <div class="empty-state">
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                        </svg>
+                        <p>Start the session and hold up objects to identify them</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="instructions">
+            <h3>How to use</h3>
+            <ol>
+                <li>Click "Start Identifying" (allow camera + microphone access)</li>
+                <li>Hold up an object and ask "What is this?" or "What do you see?"</li>
+                <li>Gemini will speak back describing the object</li>
+                <li>Use headphones to prevent echo</li>
+            </ol>
+        </div>
+    </div>
+
+    <script>
+        // Configuration
+        const GEMINI_API_KEY = 'AIzaSyCY_sVH48VfSZfyeFVBaXEbTXwNeCqByWU';
+        const GEMINI_WS_URL = 'wss://generativelanguage.googleapis.com/ws/google.ai.generativelanguage.v1beta.GenerativeService.BidiGenerateContent';
+        const MODEL = 'models/gemini-2.5-flash-native-audio-preview-12-2025';
+        const FRAME_INTERVAL_MS = 1000; // Send 1 frame per second
+
+        // Audio configuration
+        const AUDIO_INPUT_SAMPLE_RATE = 16000; // Gemini expects 16kHz input
+        const AUDIO_OUTPUT_SAMPLE_RATE = 24000; // Gemini outputs 24kHz audio
+
+        // State
+        let websocket = null;
+        let mediaStream = null;
+        let frameInterval = null;
+        let isSessionActive = false;
+        let audioContext = null;
+        let audioQueue = [];
+        let isPlaying = false;
+        let audioWorklet = null;
+        let micStream = null;
+
+        // DOM Elements
+        const webcamEl = document.getElementById('webcam');
+        const canvasEl = document.getElementById('frameCanvas');
+        const ctx = canvasEl.getContext('2d');
+        const resultsEl = document.getElementById('results');
+        const startBtn = document.getElementById('startBtn');
+        const stopBtn = document.getElementById('stopBtn');
+        const connectionStatusEl = document.getElementById('connectionStatus');
+        const streamingStatusEl = document.getElementById('streamingStatus');
+
+        function updateConnectionStatus(status) {
+            connectionStatusEl.className = `status-badge ${status}`;
+            connectionStatusEl.textContent = status.charAt(0).toUpperCase() + status.slice(1);
+        }
+
+        function updateStreamingStatus(isStreaming) {
+            streamingStatusEl.style.display = isStreaming ? 'inline-block' : 'none';
+            if (isStreaming) {
+                streamingStatusEl.classList.add('pulse');
+            }
+        }
+
+        async function startSession() {
+            startBtn.disabled = true;
+            updateConnectionStatus('connecting');
+
+            try {
+                // Start webcam and microphone
+                mediaStream = await navigator.mediaDevices.getUserMedia({
+                    video: {
+                        width: { ideal: 640 },
+                        height: { ideal: 480 }
+                    },
+                    audio: {
+                        sampleRate: AUDIO_INPUT_SAMPLE_RATE,
+                        channelCount: 1,
+                        echoCancellation: true,
+                        noiseSuppression: true
+                    }
+                });
+                webcamEl.srcObject = mediaStream;
+                await webcamEl.play();
+
+                // Set canvas size to match video
+                canvasEl.width = webcamEl.videoWidth || 640;
+                canvasEl.height = webcamEl.videoHeight || 480;
+
+                // Initialize audio context for input
+                audioContext = new (window.AudioContext || window.webkitAudioContext)({
+                    sampleRate: AUDIO_INPUT_SAMPLE_RATE
+                });
+
+                // Connect to Gemini Live API
+                const wsUrl = `${GEMINI_WS_URL}?key=${GEMINI_API_KEY}`;
+                websocket = new WebSocket(wsUrl);
+
+                websocket.onopen = () => {
+                    console.log('WebSocket connected to:', wsUrl.replace(GEMINI_API_KEY, '***'));
+                    addResult('WebSocket connected, sending setup...', false);
+                    sendSetupMessage();
+                };
+
+                websocket.onmessage = async (event) => {
+                    // Handle both text and binary messages
+                    let data = event.data;
+                    if (data instanceof Blob) {
+                        data = await data.text();
+                    }
+                    handleServerMessage(data);
+                };
+
+                websocket.onerror = (error) => {
+                    console.error('WebSocket error:', error);
+                    updateConnectionStatus('disconnected');
+                    addResult('Connection error. Please check your API key and try again.', true);
+                };
+
+                websocket.onclose = (event) => {
+                    console.log('WebSocket closed:', event.code, event.reason);
+                    if (event.code !== 1000 && event.reason) {
+                        addResult(`Connection closed: ${event.reason}`, true);
+                    }
+                    stopSession();
+                };
+
+            } catch (error) {
+                console.error('Failed to start session:', error);
+                updateConnectionStatus('disconnected');
+                startBtn.disabled = false;
+
+                if (error.name === 'NotAllowedError') {
+                    alert('Camera access denied. Please allow camera access to use this feature.');
+                } else {
+                    alert('Failed to start session: ' + error.message);
+                }
+            }
+        }
+
+        function sendSetupMessage() {
+            const setupMessage = {
+                setup: {
+                    model: MODEL,
+                    generation_config: {
+                        response_modalities: ['AUDIO']
+                    }
+                }
+            };
+
+            console.log('Sending setup:', JSON.stringify(setupMessage, null, 2));
+            websocket.send(JSON.stringify(setupMessage));
+        }
+
+        function handleServerMessage(data) {
+            try {
+                const message = JSON.parse(data);
+                console.log('Received message:', JSON.stringify(message, null, 2));
+
+                // Handle errors
+                if (message.error) {
+                    console.error('Server error:', message.error);
+                    addResult(`Error: ${message.error.message || JSON.stringify(message.error)}`, true);
+                    return;
+                }
+
+                if (message.setupComplete) {
+                    console.log('Setup complete, starting frame capture');
+                    updateConnectionStatus('connected');
+                    isSessionActive = true;
+                    stopBtn.disabled = false;
+                    startFrameCapture();
+                }
+
+                if (message.serverContent) {
+                    const parts = message.serverContent.modelTurn?.parts || [];
+                    for (const part of parts) {
+                        if (part.text) {
+                            addResult(part.text);
+                        }
+                        // Handle audio data
+                        if (part.inlineData && part.inlineData.mimeType?.startsWith('audio/')) {
+                            playAudioChunk(part.inlineData.data);
+                        }
+                    }
+                }
+
+            } catch (error) {
+                console.error('Failed to parse message:', error);
+                console.log('Raw data:', data);
+            }
+        }
+
+        // Decode base64 PCM audio and play it
+        async function playAudioChunk(base64Data) {
+            try {
+                if (!audioContext) return;
+
+                // Decode base64 to binary
+                const binaryString = atob(base64Data);
+                const bytes = new Uint8Array(binaryString.length);
+                for (let i = 0; i < binaryString.length; i++) {
+                    bytes[i] = binaryString.charCodeAt(i);
+                }
+
+                // Convert to 16-bit PCM samples
+                const samples = new Int16Array(bytes.buffer);
+
+                // Convert to float32 for Web Audio API
+                const floatSamples = new Float32Array(samples.length);
+                for (let i = 0; i < samples.length; i++) {
+                    floatSamples[i] = samples[i] / 32768.0;
+                }
+
+                // Create audio buffer at 24kHz (Gemini output rate)
+                const audioBuffer = audioContext.createBuffer(1, floatSamples.length, AUDIO_OUTPUT_SAMPLE_RATE);
+                audioBuffer.getChannelData(0).set(floatSamples);
+
+                // Queue the audio
+                audioQueue.push(audioBuffer);
+
+                // Start playing if not already
+                if (!isPlaying) {
+                    playNextInQueue();
+                }
+            } catch (error) {
+                console.error('Error playing audio:', error);
+            }
+        }
+
+        function playNextInQueue() {
+            if (audioQueue.length === 0 || !audioContext) {
+                isPlaying = false;
+                return;
+            }
+
+            isPlaying = true;
+            const buffer = audioQueue.shift();
+            const source = audioContext.createBufferSource();
+            source.buffer = buffer;
+            source.connect(audioContext.destination);
+            source.onended = playNextInQueue;
+            source.start();
+        }
+
+        function startFrameCapture() {
+            updateStreamingStatus(true);
+            addResult('Connected! Speak to ask about objects you show.', false);
+
+            // Start audio capture from microphone
+            startAudioCapture();
+
+            // Send initial frame immediately
+            captureAndSendFrame();
+
+            // Then send frames at regular intervals
+            frameInterval = setInterval(captureAndSendFrame, FRAME_INTERVAL_MS);
+        }
+
+        function startAudioCapture() {
+            if (!audioContext || !mediaStream) return;
+
+            const audioTracks = mediaStream.getAudioTracks();
+            if (audioTracks.length === 0) {
+                console.warn('No audio track available');
+                return;
+            }
+
+            const source = audioContext.createMediaStreamSource(mediaStream);
+
+            // Use ScriptProcessorNode for capturing audio (deprecated but widely supported)
+            const bufferSize = 4096;
+            const processor = audioContext.createScriptProcessor(bufferSize, 1, 1);
+
+            processor.onaudioprocess = (e) => {
+                if (!isSessionActive || !websocket || websocket.readyState !== WebSocket.OPEN) {
+                    return;
+                }
+
+                const inputData = e.inputBuffer.getChannelData(0);
+
+                // Convert float32 to int16 PCM
+                const pcmData = new Int16Array(inputData.length);
+                for (let i = 0; i < inputData.length; i++) {
+                    const s = Math.max(-1, Math.min(1, inputData[i]));
+                    pcmData[i] = s < 0 ? s * 0x8000 : s * 0x7FFF;
+                }
+
+                // Convert to base64
+                const uint8Array = new Uint8Array(pcmData.buffer);
+                let binary = '';
+                for (let i = 0; i < uint8Array.length; i++) {
+                    binary += String.fromCharCode(uint8Array[i]);
+                }
+                const base64Audio = btoa(binary);
+
+                // Send audio chunk
+                const message = {
+                    realtimeInput: {
+                        mediaChunks: [{
+                            mimeType: 'audio/pcm;rate=16000',
+                            data: base64Audio
+                        }]
+                    }
+                };
+
+                websocket.send(JSON.stringify(message));
+            };
+
+            source.connect(processor);
+            processor.connect(audioContext.destination);
+
+            // Store reference for cleanup
+            audioWorklet = processor;
+        }
+
+        function captureAndSendFrame() {
+            if (!isSessionActive || !websocket || websocket.readyState !== WebSocket.OPEN) {
+                return;
+            }
+
+            // Draw current video frame to canvas
+            ctx.drawImage(webcamEl, 0, 0, canvasEl.width, canvasEl.height);
+
+            // Convert to base64 JPEG
+            const dataUrl = canvasEl.toDataURL('image/jpeg', 0.8);
+            const base64Data = dataUrl.split(',')[1];
+
+            // Send to Gemini
+            const message = {
+                realtimeInput: {
+                    mediaChunks: [{
+                        mimeType: 'image/jpeg',
+                        data: base64Data
+                    }]
+                }
+            };
+
+            websocket.send(JSON.stringify(message));
+        }
+
+        function stopSession() {
+            isSessionActive = false;
+
+            if (frameInterval) {
+                clearInterval(frameInterval);
+                frameInterval = null;
+            }
+
+            if (audioWorklet) {
+                audioWorklet.disconnect();
+                audioWorklet = null;
+            }
+
+            if (websocket) {
+                websocket.close();
+                websocket = null;
+            }
+
+            if (mediaStream) {
+                mediaStream.getTracks().forEach(track => track.stop());
+                mediaStream = null;
+            }
+
+            // Clean up audio
+            audioQueue = [];
+            isPlaying = false;
+            if (audioContext) {
+                audioContext.close();
+                audioContext = null;
+            }
+
+            webcamEl.srcObject = null;
+            updateConnectionStatus('disconnected');
+            updateStreamingStatus(false);
+            startBtn.disabled = false;
+            stopBtn.disabled = true;
+        }
+
+        function addResult(text, isError = false) {
+            // Remove empty state if present
+            const emptyState = resultsEl.querySelector('.empty-state');
+            if (emptyState) {
+                emptyState.remove();
+            }
+
+            const resultItem = document.createElement('div');
+            resultItem.className = 'result-item';
+            if (isError) {
+                resultItem.style.borderLeftColor = '#ff4757';
+            }
+
+            const time = new Date().toLocaleTimeString();
+            resultItem.innerHTML = `
+                <div class="result-time">${time}</div>
+                <div class="result-text">${escapeHtml(text)}</div>
+            `;
+
+            resultsEl.insertBefore(resultItem, resultsEl.firstChild);
+
+            // Keep only last 50 results
+            while (resultsEl.children.length > 50) {
+                resultsEl.removeChild(resultsEl.lastChild);
+            }
+        }
+
+        function clearResults() {
+            resultsEl.innerHTML = `
+                <div class="empty-state">
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                    </svg>
+                    <p>Start the session and hold up objects to identify them</p>
+                </div>
+            `;
+        }
+
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        // Cleanup on page unload
+        window.addEventListener('beforeunload', () => {
+            stopSession();
+        });
+    </script>
+</body>
+</html>
