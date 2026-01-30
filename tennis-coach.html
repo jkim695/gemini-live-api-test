@@ -4,6 +4,9 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>AI Tennis Coach</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Roboto+Mono:wght@500;700&display=swap" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/pose@0.5.1675469404/pose.js" crossorigin="anonymous"></script>
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils@0.3.1675466862/camera_utils.js" crossorigin="anonymous"></script>
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils@0.3.1675466124/drawing_utils.js" crossorigin="anonymous"></script>
@@ -14,356 +17,751 @@
             box-sizing: border-box;
         }
 
+        :root {
+            --optic-yellow: #ccff00;
+            --optic-yellow-dim: rgba(204, 255, 0, 0.15);
+            --optic-yellow-glow: rgba(204, 255, 0, 0.4);
+            --navy-deep: #0a0e14;
+            --navy-mid: #131a24;
+            --navy-light: #1c2635;
+            --court-green: #2d5a27;
+            --white: #ffffff;
+            --white-dim: rgba(255, 255, 255, 0.7);
+            --white-muted: rgba(255, 255, 255, 0.4);
+            --danger: #ff4757;
+            --purple-coach: #a855f7;
+            --purple-glow: rgba(168, 85, 247, 0.3);
+        }
+
         body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            background: linear-gradient(135deg, #0f1419 0%, #1a2634 100%);
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: radial-gradient(ellipse at top, var(--navy-mid) 0%, var(--navy-deep) 70%);
             min-height: 100vh;
-            color: #fff;
-            padding: 20px;
+            color: var(--white);
+            overflow-x: hidden;
         }
 
-        .container {
-            max-width: 1400px;
-            margin: 0 auto;
+        .app-container {
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
         }
 
+        /* ========== HEADER ========== */
         header {
-            text-align: center;
-            margin-bottom: 20px;
+            padding: 16px 24px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: rgba(0, 0, 0, 0.3);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
         }
 
-        h1 {
-            font-size: 2.2rem;
-            margin-bottom: 8px;
-            background: linear-gradient(90deg, #00d4aa, #00b894);
+        .logo {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .logo-icon {
+            width: 40px;
+            height: 40px;
+            background: var(--optic-yellow);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 20px;
+        }
+
+        .logo h1 {
+            font-size: 1.5rem;
+            font-weight: 700;
+            background: linear-gradient(90deg, var(--optic-yellow), #9eff00);
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
             background-clip: text;
         }
 
-        .subtitle {
-            color: #8892b0;
-            font-size: 1rem;
+        .header-status {
+            display: flex;
+            gap: 12px;
+            align-items: center;
         }
 
-        .main-layout {
+        .status-pill {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 16px;
+            border-radius: 24px;
+            font-size: 0.8rem;
+            font-weight: 500;
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .status-pill .dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: var(--danger);
+        }
+
+        .status-pill.active .dot {
+            background: var(--optic-yellow);
+            box-shadow: 0 0 12px var(--optic-yellow-glow);
+            animation: glow-pulse 1.5s infinite;
+        }
+
+        @keyframes glow-pulse {
+            0%, 100% { box-shadow: 0 0 8px var(--optic-yellow-glow); }
+            50% { box-shadow: 0 0 20px var(--optic-yellow); }
+        }
+
+        /* ========== MAIN CONTENT ========== */
+        .main-content {
+            flex: 1;
             display: grid;
-            grid-template-columns: 2fr 1fr;
-            gap: 20px;
+            grid-template-columns: 1fr 380px;
+            gap: 0;
+            overflow: hidden;
         }
 
-        @media (max-width: 1000px) {
-            .main-layout {
+        @media (max-width: 1100px) {
+            .main-content {
                 grid-template-columns: 1fr;
+            }
+            .sidebar {
+                display: none;
             }
         }
 
+        /* ========== VIDEO SECTION ========== */
         .video-section {
-            background: rgba(255, 255, 255, 0.03);
-            border-radius: 12px;
-            padding: 15px;
             position: relative;
+            background: #000;
+            display: flex;
+            align-items: center;
+            justify-content: center;
         }
 
         .video-container {
             position: relative;
-            border-radius: 8px;
+            width: 100%;
+            height: 100%;
             overflow: hidden;
-            background: #000;
         }
 
         #webcam, #poseCanvas {
             width: 100%;
-            display: block;
-            border-radius: 8px;
+            height: 100%;
+            object-fit: cover;
         }
 
         #poseCanvas {
             position: absolute;
             top: 0;
             left: 0;
+            pointer-events: none;
         }
 
-        .video-overlay {
+        /* Scanning overlay effect */
+        .scan-overlay {
             position: absolute;
-            top: 10px;
-            left: 10px;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            pointer-events: none;
+            opacity: 0;
+            transition: opacity 0.3s;
+        }
+
+        .scan-overlay.active {
+            opacity: 1;
+        }
+
+        .scan-overlay::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 3px;
+            background: linear-gradient(90deg, transparent, var(--optic-yellow), transparent);
+            animation: scan 2s linear infinite;
+        }
+
+        @keyframes scan {
+            0% { top: 0; }
+            100% { top: 100%; }
+        }
+
+        .scan-overlay::after {
+            content: '';
+            position: absolute;
+            inset: 20px;
+            border: 2px solid var(--optic-yellow-dim);
+            border-radius: 8px;
+        }
+
+        /* ========== METRICS OVERLAY (Picture-in-Picture) ========== */
+        .metrics-overlay {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            right: 20px;
             display: flex;
-            gap: 8px;
-            flex-wrap: wrap;
+            justify-content: space-between;
+            pointer-events: none;
         }
 
-        .status-badge {
-            padding: 6px 12px;
-            border-radius: 20px;
-            font-size: 0.75rem;
-            font-weight: 500;
+        .metric-hud {
+            background: rgba(0, 0, 0, 0.7);
+            backdrop-filter: blur(10px);
+            border-radius: 16px;
+            padding: 16px 24px;
+            border: 1px solid rgba(204, 255, 0, 0.2);
         }
 
-        .status-badge.connected { background: rgba(46, 213, 115, 0.2); color: #2ed573; }
-        .status-badge.disconnected { background: rgba(255, 71, 87, 0.2); color: #ff4757; }
-        .status-badge.connecting { background: rgba(255, 193, 7, 0.2); color: #ffc107; }
-        .status-badge.swing { background: rgba(0, 212, 170, 0.3); color: #00d4aa; }
+        .metric-hud-label {
+            font-size: 0.7rem;
+            font-weight: 600;
+            color: var(--white-muted);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 4px;
+        }
+
+        .metric-hud-value {
+            font-family: 'Roboto Mono', monospace;
+            font-size: 3rem;
+            font-weight: 700;
+            color: var(--optic-yellow);
+            text-shadow: 0 0 30px var(--optic-yellow-glow);
+            line-height: 1;
+            display: flex;
+            align-items: baseline;
+            gap: 4px;
+        }
+
+        .metric-hud-value .unit {
+            font-size: 1.2rem;
+            color: var(--white-dim);
+        }
+
+        .metric-hud-value .trend {
+            font-size: 1.5rem;
+            margin-left: 8px;
+        }
+
+        .metric-hud-value .trend.up { color: #22c55e; }
+        .metric-hud-value .trend.down { color: var(--danger); }
+
+        /* Center swing indicator */
+        .swing-indicator-container {
+            position: absolute;
+            bottom: 100px;
+            left: 50%;
+            transform: translateX(-50%);
+            pointer-events: none;
+        }
 
         .swing-indicator {
-            position: absolute;
-            top: 10px;
-            right: 10px;
-            padding: 8px 16px;
-            border-radius: 20px;
-            font-size: 0.85rem;
-            font-weight: 600;
-            background: rgba(0, 212, 170, 0.2);
-            color: #00d4aa;
-            display: none;
+            background: var(--optic-yellow);
+            color: var(--navy-deep);
+            padding: 12px 32px;
+            border-radius: 30px;
+            font-size: 1.1rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            opacity: 0;
+            transform: scale(0.8);
+            transition: all 0.2s ease;
+            box-shadow: 0 0 40px var(--optic-yellow-glow);
         }
 
         .swing-indicator.active {
-            display: block;
-            animation: pulse 0.5s infinite;
+            opacity: 1;
+            transform: scale(1);
+            animation: swing-pulse 0.4s ease infinite;
         }
 
-        @keyframes pulse {
-            0%, 100% { opacity: 1; transform: scale(1); }
-            50% { opacity: 0.7; transform: scale(1.05); }
+        @keyframes swing-pulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.05); }
         }
 
-        .controls {
-            display: flex;
-            gap: 10px;
-            margin-top: 15px;
-        }
-
-        button {
-            flex: 1;
-            padding: 12px 20px;
-            border: none;
-            border-radius: 8px;
-            font-size: 0.95rem;
-            font-weight: 500;
-            cursor: pointer;
-            transition: all 0.2s ease;
-        }
-
-        button:disabled { opacity: 0.5; cursor: not-allowed; }
-
-        .btn-primary {
-            background: linear-gradient(90deg, #00d4aa, #00b894);
-            color: #0f1419;
-        }
-
-        .btn-primary:hover:not(:disabled) {
-            transform: translateY(-2px);
-            box-shadow: 0 4px 15px rgba(0, 212, 170, 0.4);
-        }
-
-        .btn-danger {
-            background: rgba(255, 71, 87, 0.2);
-            color: #ff4757;
-        }
-
-        .sidebar {
+        /* ========== START BUTTON OVERLAY ========== */
+        .start-overlay {
+            position: absolute;
+            inset: 0;
             display: flex;
             flex-direction: column;
-            gap: 15px;
+            align-items: center;
+            justify-content: center;
+            background: rgba(10, 14, 20, 0.9);
+            z-index: 10;
+            transition: opacity 0.5s, visibility 0.5s;
         }
 
-        .panel {
+        .start-overlay.hidden {
+            opacity: 0;
+            visibility: hidden;
+        }
+
+        .start-btn {
+            width: 160px;
+            height: 160px;
+            border-radius: 50%;
+            border: none;
+            background: linear-gradient(135deg, var(--optic-yellow) 0%, #9eff00 100%);
+            color: var(--navy-deep);
+            font-size: 3.5rem;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 0 60px var(--optic-yellow-glow);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .start-btn:hover {
+            transform: scale(1.1);
+            box-shadow: 0 0 100px var(--optic-yellow);
+        }
+
+        .start-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: scale(1);
+        }
+
+        .start-label {
+            margin-top: 24px;
+            font-size: 1.2rem;
+            font-weight: 600;
+            color: var(--white-dim);
+        }
+
+        /* Stop button (small, corner) */
+        .stop-btn {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 8px;
+            background: rgba(255, 71, 87, 0.2);
+            color: var(--danger);
+            font-weight: 600;
+            cursor: pointer;
+            z-index: 5;
+            transition: all 0.2s;
+            display: none;
+        }
+
+        .stop-btn.visible {
+            display: block;
+        }
+
+        .stop-btn:hover {
+            background: rgba(255, 71, 87, 0.4);
+        }
+
+        /* ========== SIDEBAR ========== */
+        .sidebar {
+            background: var(--navy-light);
+            border-left: 1px solid rgba(255, 255, 255, 0.05);
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        .sidebar-section {
+            padding: 20px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+        }
+
+        .sidebar-section:last-child {
+            flex: 1;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .section-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 16px;
+        }
+
+        .section-title {
+            font-size: 0.8rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: var(--white-muted);
+        }
+
+        /* Stats Grid */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+        }
+
+        .stat-card {
             background: rgba(255, 255, 255, 0.03);
             border-radius: 12px;
-            padding: 15px;
+            padding: 16px;
+            text-align: center;
+            border: 1px solid rgba(255, 255, 255, 0.05);
         }
 
-        .panel-header {
+        .stat-value {
+            font-family: 'Roboto Mono', monospace;
+            font-size: 1.8rem;
+            font-weight: 700;
+            color: var(--optic-yellow);
+        }
+
+        .stat-label {
+            font-size: 0.7rem;
+            color: var(--white-muted);
+            margin-top: 4px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        /* ========== TOAST NOTIFICATIONS (Hype Man) ========== */
+        .toast-container {
+            position: fixed;
+            bottom: 120px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 100;
+            display: flex;
+            flex-direction: column-reverse;
+            gap: 12px;
+            pointer-events: none;
+        }
+
+        .hype-toast {
+            background: linear-gradient(135deg, var(--optic-yellow), #9eff00);
+            color: var(--navy-deep);
+            padding: 16px 32px;
+            border-radius: 12px;
+            font-size: 1.2rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3), 0 0 40px var(--optic-yellow-glow);
+            animation: toast-in 0.4s ease, toast-out 0.4s ease 2.5s forwards;
+            white-space: nowrap;
+        }
+
+        .hype-toast.elite {
+            background: linear-gradient(135deg, #ffd700, #ff8c00);
+            border: 3px solid #fff;
+            animation: toast-in 0.4s ease, elite-glow 0.5s ease infinite, toast-out 0.4s ease 3s forwards;
+        }
+
+        @keyframes toast-in {
+            from { opacity: 0; transform: translateY(20px) scale(0.9); }
+            to { opacity: 1; transform: translateY(0) scale(1); }
+        }
+
+        @keyframes toast-out {
+            to { opacity: 0; transform: translateY(-20px) scale(0.9); }
+        }
+
+        @keyframes elite-glow {
+            0%, 100% { box-shadow: 0 0 20px #ffd700, 0 0 40px #ff8c00; }
+            50% { box-shadow: 0 0 40px #ffd700, 0 0 80px #ff8c00; }
+        }
+
+        /* ========== COACH ANALYSIS PANEL ========== */
+        .coach-feed {
+            flex: 1;
+            overflow-y: auto;
+            padding-right: 8px;
+        }
+
+        .coach-feed::-webkit-scrollbar {
+            width: 4px;
+        }
+
+        .coach-feed::-webkit-scrollbar-thumb {
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 2px;
+        }
+
+        .coach-analysis {
+            background: rgba(168, 85, 247, 0.1);
+            border-left: 4px solid var(--purple-coach);
+            border-radius: 0 12px 12px 0;
+            padding: 16px;
+            margin-bottom: 12px;
+            animation: slide-in 0.3s ease;
+        }
+
+        @keyframes slide-in {
+            from { opacity: 0; transform: translateX(-12px); }
+            to { opacity: 1; transform: translateX(0); }
+        }
+
+        .coach-analysis .header {
             display: flex;
             justify-content: space-between;
             align-items: center;
             margin-bottom: 12px;
-            padding-bottom: 10px;
-            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-        }
-
-        .panel-header h3 {
-            font-size: 0.95rem;
-            display: flex;
-            align-items: center;
-            gap: 8px;
-        }
-
-        .panel-header .icon {
-            font-size: 1.1rem;
-        }
-
-        .hype-feed {
-            max-height: 200px;
-            overflow-y: auto;
-        }
-
-        .hype-message {
-            padding: 10px 12px;
-            background: rgba(0, 212, 170, 0.1);
-            border-left: 3px solid #00d4aa;
-            border-radius: 0 8px 8px 0;
-            margin-bottom: 8px;
-            font-size: 0.9rem;
-            animation: slideIn 0.3s ease;
-        }
-
-        @keyframes slideIn {
-            from { opacity: 0; transform: translateX(-10px); }
-            to { opacity: 1; transform: translateX(0); }
-        }
-
-        .coach-feed {
-            max-height: 300px;
-            overflow-y: auto;
-        }
-
-        .coach-analysis {
-            padding: 12px;
-            background: rgba(99, 102, 241, 0.1);
-            border-left: 3px solid #6366f1;
-            border-radius: 0 8px 8px 0;
-            margin-bottom: 10px;
         }
 
         .coach-analysis .timestamp {
             font-size: 0.7rem;
-            color: #8892b0;
-            margin-bottom: 6px;
+            color: var(--white-muted);
+        }
+
+        .coach-analysis .swing-num {
+            font-size: 0.7rem;
+            font-weight: 600;
+            color: var(--purple-coach);
+            background: var(--purple-glow);
+            padding: 4px 10px;
+            border-radius: 12px;
         }
 
         .coach-analysis .content {
-            font-size: 0.85rem;
-            line-height: 1.5;
+            font-size: 0.9rem;
+            line-height: 1.6;
+            color: var(--white-dim);
         }
 
-        .coach-analysis.loading {
-            opacity: 0.6;
+        .coach-analysis .pro-tip {
+            margin-top: 12px;
+            padding: 12px;
+            background: rgba(204, 255, 0, 0.1);
+            border-radius: 8px;
+            font-size: 0.85rem;
+        }
+
+        .coach-analysis .pro-tip strong {
+            color: var(--optic-yellow);
         }
 
         .coach-analysis.loading .content::after {
-            content: '...';
-            animation: dots 1s infinite;
+            content: '';
+            display: inline-block;
+            width: 12px;
+            height: 12px;
+            border: 2px solid var(--purple-coach);
+            border-top-color: transparent;
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+            margin-left: 8px;
+            vertical-align: middle;
         }
 
-        @keyframes dots {
-            0%, 20% { content: '.'; }
-            40% { content: '..'; }
-            60%, 100% { content: '...'; }
-        }
-
-        .metrics-grid {
-            display: grid;
-            grid-template-columns: repeat(2, 1fr);
-            gap: 10px;
-        }
-
-        .metric-card {
-            background: rgba(255, 255, 255, 0.05);
-            border-radius: 8px;
-            padding: 12px;
-            text-align: center;
-        }
-
-        .metric-value {
-            font-size: 1.4rem;
-            font-weight: 600;
-            color: #00d4aa;
-        }
-
-        .metric-label {
-            font-size: 0.7rem;
-            color: #8892b0;
-            margin-top: 4px;
+        @keyframes spin {
+            to { transform: rotate(360deg); }
         }
 
         .empty-state {
             text-align: center;
-            padding: 20px;
-            color: #8892b0;
-            font-size: 0.85rem;
+            padding: 40px 20px;
+            color: var(--white-muted);
+            font-size: 0.9rem;
         }
 
+        .empty-state .icon {
+            font-size: 3rem;
+            margin-bottom: 12px;
+            opacity: 0.5;
+        }
+
+        /* ========== HISTORY REEL (Bottom) ========== */
+        .history-reel {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            height: 80px;
+            background: linear-gradient(transparent, rgba(0, 0, 0, 0.9));
+            display: flex;
+            align-items: flex-end;
+            padding: 12px 20px;
+            gap: 12px;
+            overflow-x: auto;
+        }
+
+        .history-reel::-webkit-scrollbar {
+            display: none;
+        }
+
+        .history-thumb {
+            flex-shrink: 0;
+            width: 80px;
+            height: 56px;
+            border-radius: 8px;
+            overflow: hidden;
+            border: 2px solid transparent;
+            cursor: pointer;
+            transition: all 0.2s;
+            position: relative;
+        }
+
+        .history-thumb:hover {
+            border-color: var(--optic-yellow);
+            transform: scale(1.1);
+        }
+
+        .history-thumb img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        .history-thumb .swing-badge {
+            position: absolute;
+            bottom: 4px;
+            right: 4px;
+            background: rgba(0, 0, 0, 0.7);
+            color: var(--optic-yellow);
+            font-size: 0.6rem;
+            font-weight: 700;
+            padding: 2px 6px;
+            border-radius: 4px;
+        }
+
+        /* Hidden elements */
         #lowResCanvas {
             display: none;
         }
     </style>
 </head>
 <body>
-    <div class="container">
+    <div class="app-container">
+        <!-- Header -->
         <header>
-            <h1>AI Tennis Coach</h1>
-            <p class="subtitle">Real-time hype + Deep swing analysis powered by Gemini</p>
+            <div class="logo">
+                <div class="logo-icon">🎾</div>
+                <h1>AI Tennis Coach</h1>
+            </div>
+            <div class="header-status">
+                <div id="connectionStatus" class="status-pill">
+                    <span class="dot"></span>
+                    <span class="text">Disconnected</span>
+                </div>
+                <div id="poseStatus" class="status-pill">
+                    <span class="dot"></span>
+                    <span class="text">Pose Off</span>
+                </div>
+            </div>
         </header>
 
-        <div class="main-layout">
+        <!-- Main Content -->
+        <div class="main-content">
+            <!-- Video Section -->
             <div class="video-section">
                 <div class="video-container">
                     <video id="webcam" autoplay playsinline muted></video>
                     <canvas id="poseCanvas"></canvas>
-                    <div class="video-overlay">
-                        <span id="connectionStatus" class="status-badge disconnected">Disconnected</span>
-                        <span id="poseStatus" class="status-badge disconnected">Pose: Off</span>
+                    <div id="scanOverlay" class="scan-overlay"></div>
+
+                    <!-- Metrics Overlay (HUD) -->
+                    <div class="metrics-overlay">
+                        <div class="metric-hud">
+                            <div class="metric-hud-label">Racket Speed</div>
+                            <div class="metric-hud-value">
+                                <span id="racketSpeed">--</span>
+                                <span class="unit">mph</span>
+                                <span id="speedTrend" class="trend"></span>
+                            </div>
+                        </div>
+                        <div class="metric-hud">
+                            <div class="metric-hud-label">Shoulder Rotation</div>
+                            <div class="metric-hud-value">
+                                <span id="shoulderRotation">--</span>
+                                <span class="unit">°</span>
+                                <span id="rotationTrend" class="trend"></span>
+                            </div>
+                        </div>
                     </div>
-                    <div id="swingIndicator" class="swing-indicator">SWING DETECTED</div>
+
+                    <!-- Swing Indicator -->
+                    <div class="swing-indicator-container">
+                        <div id="swingIndicator" class="swing-indicator">SWING DETECTED</div>
+                    </div>
+
+                    <!-- History Reel -->
+                    <div id="historyReel" class="history-reel"></div>
+
+                    <!-- Start Overlay -->
+                    <div id="startOverlay" class="start-overlay">
+                        <button id="startBtn" class="start-btn" onclick="startSession()">▶</button>
+                        <div class="start-label">Start Coaching Session</div>
+                    </div>
+
+                    <!-- Stop Button -->
+                    <button id="stopBtn" class="stop-btn" onclick="stopSession()">Stop Session</button>
                 </div>
                 <canvas id="lowResCanvas"></canvas>
-                <div class="controls">
-                    <button id="startBtn" class="btn-primary" onclick="startSession()">Start Coaching</button>
-                    <button id="stopBtn" class="btn-danger" onclick="stopSession()" disabled>Stop</button>
-                </div>
             </div>
 
+            <!-- Sidebar -->
             <div class="sidebar">
-                <!-- Real-time Metrics -->
-                <div class="panel">
-                    <div class="panel-header">
-                        <h3><span class="icon">📊</span> Live Metrics</h3>
+                <!-- Session Stats -->
+                <div class="sidebar-section">
+                    <div class="section-header">
+                        <span class="section-title">Session Stats</span>
                     </div>
-                    <div class="metrics-grid">
-                        <div class="metric-card">
-                            <div id="swingCount" class="metric-value">0</div>
-                            <div class="metric-label">Swings Detected</div>
+                    <div class="stats-grid">
+                        <div class="stat-card">
+                            <div id="swingCount" class="stat-value">0</div>
+                            <div class="stat-label">Swings</div>
                         </div>
-                        <div class="metric-card">
-                            <div id="shoulderRotation" class="metric-value">--°</div>
-                            <div class="metric-label">Shoulder Rotation</div>
+                        <div class="stat-card">
+                            <div id="contactHeight" class="stat-value">--</div>
+                            <div class="stat-label">Contact</div>
                         </div>
-                        <div class="metric-card">
-                            <div id="racketSpeed" class="metric-value">-- mph</div>
-                            <div class="metric-label">Est. Racket Speed</div>
+                        <div class="stat-card">
+                            <div id="peakSpeed" class="stat-value">--</div>
+                            <div class="stat-label">Peak MPH</div>
                         </div>
-                        <div class="metric-card">
-                            <div id="contactHeight" class="metric-value">--</div>
-                            <div class="metric-label">Contact Height</div>
+                        <div class="stat-card">
+                            <div id="avgRotation" class="stat-value">--</div>
+                            <div class="stat-label">Avg Rotation</div>
                         </div>
-                    </div>
-                </div>
-
-                <!-- Hype Man Feed -->
-                <div class="panel">
-                    <div class="panel-header">
-                        <h3><span class="icon">🎯</span> Hype Man</h3>
-                        <span class="status-badge connected" id="hypeStatus" style="display: none;">Live</span>
-                    </div>
-                    <div id="hypeFeed" class="hype-feed">
-                        <div class="empty-state">Start session for real-time encouragement</div>
                     </div>
                 </div>
 
-                <!-- Deep Coach Feed -->
-                <div class="panel">
-                    <div class="panel-header">
-                        <h3><span class="icon">🧠</span> Deep Coach Analysis</h3>
+                <!-- Deep Coach Analysis -->
+                <div class="sidebar-section">
+                    <div class="section-header">
+                        <span class="section-title">Deep Coach Analysis</span>
                     </div>
                     <div id="coachFeed" class="coach-feed">
-                        <div class="empty-state">Swing analysis will appear here after each shot</div>
+                        <div class="empty-state">
+                            <div class="icon">🧠</div>
+                            <div>Swing analysis will appear here after each shot</div>
+                        </div>
                     </div>
                 </div>
             </div>
         </div>
     </div>
+
+    <!-- Toast Container for Hype Man -->
+    <div id="toastContainer" class="toast-container"></div>
+
+    <!-- Audio for feedback -->
+    <audio id="dingSfx" preload="auto">
+        <source src="data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgodDbq2EcBj+a2teleRUFQp3c8LBfDAA8n+H/zHYPAB+X4/3WfxAAD4zg+9yFFwABf9b33YsaAPRw0PPejR4A7GXM8N+OIQD2YMjt4I0hAP1bxergjCIA/1nE5+CKIgD/WcTn4IkiAP9Zw+fgiCIA/1jD5t+HIQD/V8Ll34YhAP9Xwubfhh8A/1fC5d+FHgD+V8Ll34QdAP5WweXfgxwA/lbB5N+CHAD+VsDk3oEaAP5VwOTegBoA/lW/496AGAD+Vb/j3n8XAP5Uv+PefxYA/lS+4959FAD+U77i3n0TAP1TvuLdfBIA/VO+4d17EQD9Ur7h3XoQAP1SveDdeg8A/VK94Nx5DgD9Ubzg3HgNAPxRvN/cdwwA/FC83tx2CwD8ULvd3HYKAP1Pu93bcQkA/U+63dtwCAD9T7nc228HAP1OudzbbgYA/U652tttBQD9Trnb22wEAP1Nudrbawo=" type="audio/wav">
+    </audio>
 
     <script>
         // ============================================
@@ -372,7 +770,6 @@
         const CONFIG = {
             GEMINI_API_KEY: 'AIzaSyCY_sVH48VfSZfyeFVBaXEbTXwNeCqByWU',
             LIVE_API_URL: 'wss://generativelanguage.googleapis.com/ws/google.ai.generativelanguage.v1beta.GenerativeService.BidiGenerateContent',
-            // Using Gemini 3 Pro for deep analysis (requires thinking config)
             GEMINI_REST_URL: 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-pro-preview-06-05:generateContent',
             HYPE_MODEL: 'models/gemini-2.5-flash-native-audio-preview-12-2025',
             COACH_MODEL: 'gemini-2.5-pro-preview-06-05',
@@ -383,7 +780,8 @@
             FRAME_INTERVAL_MS: 1000,
             AUDIO_INPUT_RATE: 16000,
             AUDIO_OUTPUT_RATE: 24000,
-            SWING_BUFFER_SECONDS: 4
+            SWING_BUFFER_SECONDS: 4,
+            SPEED_GOAL_MPH: 60
         };
 
         // ============================================
@@ -444,44 +842,42 @@ Do NOT:
         // ============================================
         class DualStreamManager {
             constructor() {
-                // Stream 1: Live API (Hype Man)
                 this.liveSocket = null;
                 this.isLiveConnected = false;
                 this.audioContext = null;
                 this.audioProcessor = null;
 
-                // Stream 2: High-res buffer for Coach
                 this.swingBuffer = [];
                 this.telemetryBuffer = [];
                 this.isRecordingSwing = false;
                 this.swingStartTime = null;
 
-                // Pose Detection
                 this.pose = null;
                 this.isPoseReady = false;
                 this.currentLandmarks = null;
 
-                // Swing State Machine
-                this.swingState = 'IDLE'; // IDLE -> UNIT_TURN -> FORWARD_SWING -> FOLLOW_THROUGH -> IDLE
+                this.swingState = 'IDLE';
                 this.swingCount = 0;
 
-                // Media
                 this.mediaStream = null;
                 this.frameInterval = null;
 
-                // Metrics
                 this.lastWristPositions = [];
                 this.peakRacketSpeed = 0;
                 this.shoulderRotation = 0;
                 this.contactHeight = 0;
-
-                // Rate limiting
                 this.lastAnalysisTime = 0;
+
+                // Session stats
+                this.sessionPeakSpeed = 0;
+                this.rotationHistory = [];
+                this.lastSpeed = 0;
+                this.lastRotation = 0;
+
+                // Swing history for reel
+                this.swingHistory = [];
             }
 
-            // ----------------------------------------
-            // INITIALIZATION
-            // ----------------------------------------
             async initialize() {
                 await this.initializeMedia();
                 await this.initializePose();
@@ -507,7 +903,6 @@ Do NOT:
                 webcam.srcObject = this.mediaStream;
                 await webcam.play();
 
-                // Setup canvases
                 const poseCanvas = document.getElementById('poseCanvas');
                 const lowResCanvas = document.getElementById('lowResCanvas');
 
@@ -516,7 +911,6 @@ Do NOT:
                 lowResCanvas.width = CONFIG.LOW_RES_WIDTH;
                 lowResCanvas.height = CONFIG.LOW_RES_HEIGHT;
 
-                // Initialize audio context
                 this.audioContext = new (window.AudioContext || window.webkitAudioContext)({
                     sampleRate: CONFIG.AUDIO_INPUT_RATE
                 });
@@ -537,16 +931,14 @@ Do NOT:
 
                 this.pose.onResults((results) => this.onPoseResults(results));
 
-                // Wait for pose to be ready
                 await this.pose.initialize();
                 this.isPoseReady = true;
-                document.getElementById('poseStatus').textContent = 'Pose: Ready';
-                document.getElementById('poseStatus').className = 'status-badge connected';
+                updatePoseStatus(true);
             }
 
             async initializeLiveAPI() {
                 updateConnectionStatus('connecting');
-                addHypeMessage('Connecting to Hype Man...');
+                showHypeToast('Connecting...', false);
 
                 const wsUrl = `${CONFIG.LIVE_API_URL}?key=${CONFIG.GEMINI_API_KEY}`;
                 this.liveSocket = new WebSocket(wsUrl);
@@ -599,8 +991,8 @@ Do NOT:
                     if (message.setupComplete) {
                         this.isLiveConnected = true;
                         updateConnectionStatus('connected');
-                        document.getElementById('hypeStatus').style.display = 'inline-block';
-                        addHypeMessage('Hype Man ready! Let\'s go!');
+                        document.getElementById('scanOverlay').classList.add('active');
+                        showHypeToast("LET'S GO!", false);
                         this.startStreaming();
                     }
 
@@ -608,7 +1000,7 @@ Do NOT:
                         const parts = message.serverContent.modelTurn?.parts || [];
                         for (const part of parts) {
                             if (part.text) {
-                                addHypeMessage(part.text);
+                                showHypeToast(part.text, false);
                             }
                             if (part.inlineData?.mimeType?.startsWith('audio/')) {
                                 this.playAudio(part.inlineData.data);
@@ -620,19 +1012,13 @@ Do NOT:
                 }
             }
 
-            // ----------------------------------------
-            // STREAMING LOOP
-            // ----------------------------------------
             startStreaming() {
-                // Start audio capture
                 this.startAudioCapture();
 
-                // Start frame processing loop
                 this.frameInterval = setInterval(() => {
                     this.processFrame();
-                }, 33); // ~30fps for pose detection
+                }, 33);
 
-                // Send low-res frames to Live API at 1fps
                 setInterval(() => {
                     this.sendLowResFrame();
                 }, CONFIG.FRAME_INTERVAL_MS);
@@ -677,7 +1063,6 @@ Do NOT:
 
             async processFrame() {
                 if (!this.isPoseReady) return;
-
                 const webcam = document.getElementById('webcam');
                 await this.pose.send({ image: webcam });
             }
@@ -704,9 +1089,6 @@ Do NOT:
                 this.liveSocket.send(JSON.stringify(message));
             }
 
-            // ----------------------------------------
-            // POSE PROCESSING & SWING DETECTION
-            // ----------------------------------------
             onPoseResults(results) {
                 this.drawPose(results);
 
@@ -716,7 +1098,6 @@ Do NOT:
                 this.updateSwingStateMachine(results.poseLandmarks);
                 this.computeMetrics(results.poseLandmarks);
 
-                // Buffer for swing recording
                 if (this.isRecordingSwing) {
                     this.bufferTelemetry(results.poseLandmarks);
                 }
@@ -728,34 +1109,29 @@ Do NOT:
                 ctx.clearRect(0, 0, canvas.width, canvas.height);
 
                 if (results.poseLandmarks) {
+                    // Draw with optic yellow
                     drawConnectors(ctx, results.poseLandmarks, POSE_CONNECTIONS, {
-                        color: '#00d4aa',
-                        lineWidth: 2
+                        color: '#ccff00',
+                        lineWidth: 3
                     });
                     drawLandmarks(ctx, results.poseLandmarks, {
-                        color: '#00b894',
+                        color: '#9eff00',
                         lineWidth: 1,
-                        radius: 3
+                        radius: 4
                     });
                 }
             }
 
             updateSwingStateMachine(landmarks) {
-                // Key landmarks for tennis swing detection
                 const rightWrist = landmarks[16];
-                const rightElbow = landmarks[14];
                 const rightShoulder = landmarks[12];
                 const leftShoulder = landmarks[11];
-                const rightHip = landmarks[24];
-                const leftHip = landmarks[23];
 
-                // Calculate shoulder line angle (for unit turn detection)
                 const shoulderAngle = Math.atan2(
                     rightShoulder.y - leftShoulder.y,
                     rightShoulder.x - leftShoulder.x
                 ) * (180 / Math.PI);
 
-                // Calculate wrist velocity
                 this.lastWristPositions.push({ x: rightWrist.x, y: rightWrist.y, t: Date.now() });
                 if (this.lastWristPositions.length > 10) {
                     this.lastWristPositions.shift();
@@ -763,10 +1139,8 @@ Do NOT:
 
                 const wristVelocity = this.calculateWristVelocity();
 
-                // State machine transitions
                 switch (this.swingState) {
                     case 'IDLE':
-                        // Detect unit turn: shoulder rotation > 30°
                         if (Math.abs(shoulderAngle) > 30 && rightWrist.x > rightShoulder.x) {
                             this.swingState = 'UNIT_TURN';
                             this.startSwingRecording();
@@ -774,23 +1148,20 @@ Do NOT:
                         break;
 
                     case 'UNIT_TURN':
-                        // Detect forward swing: wrist moving forward rapidly
                         if (wristVelocity > 0.02 && rightWrist.x < rightShoulder.x) {
                             this.swingState = 'FORWARD_SWING';
                         }
                         break;
 
                     case 'FORWARD_SWING':
-                        // Detect follow-through: wrist crosses body center
                         const bodyCenter = (leftShoulder.x + rightShoulder.x) / 2;
                         if (rightWrist.x < bodyCenter - 0.1) {
                             this.swingState = 'FOLLOW_THROUGH';
-                            this.peakRacketSpeed = wristVelocity * 100; // Rough estimate
+                            this.peakRacketSpeed = wristVelocity * 100;
                         }
                         break;
 
                     case 'FOLLOW_THROUGH':
-                        // Complete swing detection
                         if (wristVelocity < 0.01) {
                             this.completeSwing();
                             this.swingState = 'IDLE';
@@ -798,9 +1169,8 @@ Do NOT:
                         break;
                 }
 
-                // Update UI
-                document.getElementById('swingIndicator').className =
-                    'swing-indicator' + (this.swingState !== 'IDLE' ? ' active' : '');
+                const indicator = document.getElementById('swingIndicator');
+                indicator.classList.toggle('active', this.swingState !== 'IDLE');
             }
 
             calculateWristVelocity() {
@@ -815,7 +1185,6 @@ Do NOT:
             }
 
             computeMetrics(landmarks) {
-                // Shoulder rotation
                 const rightShoulder = landmarks[12];
                 const leftShoulder = landmarks[11];
                 this.shoulderRotation = Math.abs(Math.atan2(
@@ -823,26 +1192,52 @@ Do NOT:
                     rightShoulder.x - leftShoulder.x
                 ) * (180 / Math.PI));
 
-                // Contact height relative to hips
                 const rightWrist = landmarks[16];
                 const rightHip = landmarks[24];
                 const heightDiff = (rightHip.y - rightWrist.y) * 100;
-                this.contactHeight = heightDiff > 0 ? 'Above' : 'Below';
+                this.contactHeight = heightDiff > 0 ? 'High' : 'Low';
 
-                // Update UI
-                document.getElementById('shoulderRotation').textContent =
-                    this.shoulderRotation.toFixed(0) + '°';
+                // Update HUD
+                const rotationEl = document.getElementById('shoulderRotation');
+                rotationEl.textContent = this.shoulderRotation.toFixed(0);
+
+                // Update trends
+                const rotationTrend = document.getElementById('rotationTrend');
+                if (this.lastRotation > 0) {
+                    if (this.shoulderRotation > this.lastRotation + 2) {
+                        rotationTrend.textContent = '▲';
+                        rotationTrend.className = 'trend up';
+                    } else if (this.shoulderRotation < this.lastRotation - 2) {
+                        rotationTrend.textContent = '▼';
+                        rotationTrend.className = 'trend down';
+                    } else {
+                        rotationTrend.textContent = '';
+                    }
+                }
+                this.lastRotation = this.shoulderRotation;
+
                 document.getElementById('contactHeight').textContent = this.contactHeight;
 
                 if (this.peakRacketSpeed > 0) {
-                    document.getElementById('racketSpeed').textContent =
-                        this.peakRacketSpeed.toFixed(0) + ' mph';
+                    const speedEl = document.getElementById('racketSpeed');
+                    speedEl.textContent = this.peakRacketSpeed.toFixed(0);
+
+                    const speedTrend = document.getElementById('speedTrend');
+                    if (this.lastSpeed > 0) {
+                        if (this.peakRacketSpeed > this.lastSpeed + 2) {
+                            speedTrend.textContent = '▲';
+                            speedTrend.className = 'trend up';
+                        } else if (this.peakRacketSpeed < this.lastSpeed - 2) {
+                            speedTrend.textContent = '▼';
+                            speedTrend.className = 'trend down';
+                        } else {
+                            speedTrend.textContent = '';
+                        }
+                    }
+                    this.lastSpeed = this.peakRacketSpeed;
                 }
             }
 
-            // ----------------------------------------
-            // SWING RECORDING & ANALYSIS
-            // ----------------------------------------
             startSwingRecording() {
                 this.isRecordingSwing = true;
                 this.swingStartTime = Date.now();
@@ -867,7 +1262,6 @@ Do NOT:
                 };
                 this.telemetryBuffer.push(frame);
 
-                // Also capture high-res frame
                 const webcam = document.getElementById('webcam');
                 const canvas = document.createElement('canvas');
                 canvas.width = webcam.videoWidth;
@@ -890,30 +1284,75 @@ Do NOT:
                 this.swingCount++;
                 document.getElementById('swingCount').textContent = this.swingCount;
 
-                console.log(`Swing ${this.swingCount} completed. Frames: ${this.swingBuffer.length}`);
+                // Update session stats
+                if (this.peakRacketSpeed > this.sessionPeakSpeed) {
+                    this.sessionPeakSpeed = this.peakRacketSpeed;
+                    document.getElementById('peakSpeed').textContent = this.sessionPeakSpeed.toFixed(0);
+                }
 
-                // Send to Deep Coach for analysis (with rate limiting)
+                this.rotationHistory.push(this.shoulderRotation);
+                const avgRot = this.rotationHistory.reduce((a, b) => a + b, 0) / this.rotationHistory.length;
+                document.getElementById('avgRotation').textContent = avgRot.toFixed(0) + '°';
+
+                // Play ding if speed goal reached
+                if (this.peakRacketSpeed >= CONFIG.SPEED_GOAL_MPH) {
+                    playDing();
+                    showHypeToast('ELITE POWER!', true);
+                }
+
+                // Add to history reel
+                this.addToHistoryReel();
+
+                console.log(`Swing ${this.swingCount} completed. Frames: ${this.swingBuffer.length}`);
                 await this.analyzeSwing();
+            }
+
+            addToHistoryReel() {
+                if (this.swingBuffer.length === 0) return;
+
+                const reel = document.getElementById('historyReel');
+                const thumb = document.createElement('div');
+                thumb.className = 'history-thumb';
+                thumb.innerHTML = `
+                    <img src="${this.swingBuffer[Math.floor(this.swingBuffer.length / 2)]}" alt="Swing ${this.swingCount}">
+                    <span class="swing-badge">#${this.swingCount}</span>
+                `;
+                thumb.onclick = () => this.showSwingAnalysis(this.swingCount);
+                reel.appendChild(thumb);
+                reel.scrollLeft = reel.scrollWidth;
+
+                this.swingHistory.push({
+                    num: this.swingCount,
+                    thumbnail: this.swingBuffer[Math.floor(this.swingBuffer.length / 2)],
+                    speed: this.peakRacketSpeed,
+                    rotation: this.shoulderRotation
+                });
+            }
+
+            showSwingAnalysis(swingNum) {
+                const analysis = document.querySelector(`.coach-analysis[data-swing="${swingNum}"]`);
+                if (analysis) {
+                    analysis.scrollIntoView({ behavior: 'smooth' });
+                    analysis.style.boxShadow = '0 0 20px var(--purple-glow)';
+                    setTimeout(() => analysis.style.boxShadow = '', 1000);
+                }
             }
 
             async analyzeSwing() {
                 if (this.swingBuffer.length === 0) return;
 
-                // Rate limiting: only allow 1 analysis per 10 seconds
                 const now = Date.now();
                 if (this.lastAnalysisTime && (now - this.lastAnalysisTime) < 10000) {
                     console.log('Rate limited - skipping analysis');
-                    addCoachAnalysis('Swing recorded. Waiting for rate limit cooldown...', false, now);
+                    addCoachAnalysis('Swing recorded. Cooldown...', false, now, this.swingCount);
                     return;
                 }
                 this.lastAnalysisTime = now;
 
-                // Add loading state
                 const analysisId = Date.now();
-                addCoachAnalysis('Analyzing swing...', true, analysisId);
+                addCoachAnalysis('Analyzing swing...', true, analysisId, this.swingCount);
 
                 try {
-                    // Prepare telemetry summary
                     const telemetrySummary = {
                         frame_count: this.telemetryBuffer.length,
                         duration_ms: this.telemetryBuffer.length > 0 ?
@@ -926,7 +1365,6 @@ Do NOT:
                         )
                     };
 
-                    // Select key frames for analysis (start, mid, contact, follow-through)
                     const keyFrameIndices = [
                         0,
                         Math.floor(this.swingBuffer.length * 0.3),
@@ -943,7 +1381,6 @@ Do NOT:
 
                     console.log('Sending to Gemini:', keyFrames.length, 'frames');
 
-                    // Call Gemini 2.5 Pro for deep analysis
                     const response = await fetch(`${CONFIG.GEMINI_REST_URL}?key=${CONFIG.GEMINI_API_KEY}`, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
@@ -965,7 +1402,6 @@ Do NOT:
                     const result = await response.json();
                     console.log('Gemini response:', JSON.stringify(result, null, 2));
 
-                    // Check for API errors
                     if (result.error) {
                         throw new Error(result.error.message || JSON.stringify(result.error));
                     }
@@ -981,9 +1417,6 @@ Do NOT:
                 }
             }
 
-            // ----------------------------------------
-            // AUDIO PLAYBACK
-            // ----------------------------------------
             playAudio(base64Data) {
                 try {
                     const binaryString = atob(base64Data);
@@ -1012,29 +1445,12 @@ Do NOT:
                 }
             }
 
-            // ----------------------------------------
-            // CLEANUP
-            // ----------------------------------------
             destroy() {
-                if (this.frameInterval) {
-                    clearInterval(this.frameInterval);
-                }
-
-                if (this.audioProcessor) {
-                    this.audioProcessor.disconnect();
-                }
-
-                if (this.liveSocket) {
-                    this.liveSocket.close();
-                }
-
-                if (this.mediaStream) {
-                    this.mediaStream.getTracks().forEach(track => track.stop());
-                }
-
-                if (this.audioContext) {
-                    this.audioContext.close();
-                }
+                if (this.frameInterval) clearInterval(this.frameInterval);
+                if (this.audioProcessor) this.audioProcessor.disconnect();
+                if (this.liveSocket) this.liveSocket.close();
+                if (this.mediaStream) this.mediaStream.getTracks().forEach(track => track.stop());
+                if (this.audioContext) this.audioContext.close();
             }
         }
 
@@ -1045,26 +1461,33 @@ Do NOT:
 
         function updateConnectionStatus(status) {
             const el = document.getElementById('connectionStatus');
-            el.className = `status-badge ${status}`;
-            el.textContent = status.charAt(0).toUpperCase() + status.slice(1);
+            el.classList.toggle('active', status === 'connected');
+            el.querySelector('.text').textContent = status.charAt(0).toUpperCase() + status.slice(1);
         }
 
-        function addHypeMessage(text) {
-            const feed = document.getElementById('hypeFeed');
-            const emptyState = feed.querySelector('.empty-state');
-            if (emptyState) emptyState.remove();
-
-            const msg = document.createElement('div');
-            msg.className = 'hype-message';
-            msg.textContent = text;
-            feed.insertBefore(msg, feed.firstChild);
-
-            while (feed.children.length > 10) {
-                feed.removeChild(feed.lastChild);
-            }
+        function updatePoseStatus(active) {
+            const el = document.getElementById('poseStatus');
+            el.classList.toggle('active', active);
+            el.querySelector('.text').textContent = active ? 'Pose Active' : 'Pose Off';
         }
 
-        function addCoachAnalysis(text, loading = false, id = null) {
+        function showHypeToast(text, isElite = false) {
+            const container = document.getElementById('toastContainer');
+            const toast = document.createElement('div');
+            toast.className = 'hype-toast' + (isElite ? ' elite' : '');
+            toast.textContent = text;
+            container.appendChild(toast);
+
+            setTimeout(() => toast.remove(), 3500);
+        }
+
+        function playDing() {
+            const audio = document.getElementById('dingSfx');
+            audio.currentTime = 0;
+            audio.play().catch(() => {});
+        }
+
+        function addCoachAnalysis(text, loading = false, id = null, swingNum = 0) {
             const feed = document.getElementById('coachFeed');
             const emptyState = feed.querySelector('.empty-state');
             if (emptyState) emptyState.remove();
@@ -1072,14 +1495,18 @@ Do NOT:
             const analysis = document.createElement('div');
             analysis.className = 'coach-analysis' + (loading ? ' loading' : '');
             if (id) analysis.dataset.id = id;
+            if (swingNum) analysis.dataset.swing = swingNum;
 
             analysis.innerHTML = `
-                <div class="timestamp">${new Date().toLocaleTimeString()}</div>
+                <div class="header">
+                    <span class="timestamp">${new Date().toLocaleTimeString()}</span>
+                    <span class="swing-num">Swing #${swingNum}</span>
+                </div>
                 <div class="content">${text}</div>
             `;
             feed.insertBefore(analysis, feed.firstChild);
 
-            while (feed.children.length > 5) {
+            while (feed.children.length > 10) {
                 feed.removeChild(feed.lastChild);
             }
         }
@@ -1088,13 +1515,20 @@ Do NOT:
             const analysis = document.querySelector(`.coach-analysis[data-id="${id}"]`);
             if (analysis) {
                 analysis.classList.remove('loading');
-                analysis.querySelector('.content').textContent = text;
+                const contentEl = analysis.querySelector('.content');
+                contentEl.innerHTML = `
+                    ${text}
+                    <div class="pro-tip">
+                        <strong>Pro Tip:</strong> Focus on this correction for your next 5 swings.
+                    </div>
+                `;
             }
         }
 
         async function startSession() {
             document.getElementById('startBtn').disabled = true;
-            document.getElementById('stopBtn').disabled = false;
+            document.getElementById('startOverlay').classList.add('hidden');
+            document.getElementById('stopBtn').classList.add('visible');
 
             try {
                 manager = new DualStreamManager();
@@ -1113,11 +1547,11 @@ Do NOT:
             }
 
             document.getElementById('startBtn').disabled = false;
-            document.getElementById('stopBtn').disabled = true;
+            document.getElementById('startOverlay').classList.remove('hidden');
+            document.getElementById('stopBtn').classList.remove('visible');
+            document.getElementById('scanOverlay').classList.remove('active');
             updateConnectionStatus('disconnected');
-            document.getElementById('hypeStatus').style.display = 'none';
-            document.getElementById('poseStatus').textContent = 'Pose: Off';
-            document.getElementById('poseStatus').className = 'status-badge disconnected';
+            updatePoseStatus(false);
             document.getElementById('webcam').srcObject = null;
         }
 
